@@ -55,17 +55,33 @@ def D_logistic_r1(G, D, opt, training_set, minibatch_size, reals, labels, gamma=
     fake_images_out = G.get_output_for(latents, labels, is_training=True)
     real_scores_out = D.get_output_for(reals, labels, is_training=True)
     fake_scores_out = D.get_output_for(fake_images_out, labels, is_training=True)
-    real_scores_out = autosummary('Loss/scores/real', real_scores_out)
-    fake_scores_out = autosummary('Loss/scores/fake', fake_scores_out)
-    loss = tf.nn.softplus(fake_scores_out) # -log(1-sigmoid(fake_scores_out))
-    loss += tf.nn.softplus(-real_scores_out) # -log(sigmoid(real_scores_out)) # pylint: disable=invalid-unary-operand-type
+    
+    ppl_real, ppl_fake = None, None
+    if isinstance(real_scores_out, tuple):
+        real_scores_out, real_quant_loss, ppl_real = real_scores_out[0], real_scores_out[1], real_scores_out[2]
+        fake_scores_out, fake_quant_loss, ppl_fake = fake_scores_out[0], fake_scores_out[1], fake_scores_out[2]
+        real_scores_out = autosummary('Loss/scores/real', real_scores_out)
+        fake_scores_out = autosummary('Loss/scores/fake', fake_scores_out)
+        loss = tf.nn.softplus(fake_scores_out) # -log(1-sigmoid(fake_scores_out))
+        loss += tf.nn.softplus(-real_scores_out) + real_quant_loss + fake_quant_loss # -log(sigmoid(real_scores_out)) # pylint:
+        # disable=invalid-unary-operand-type
+    else:
+        real_scores_out = autosummary('Loss/scores/real', real_scores_out)
+        fake_scores_out = autosummary('Loss/scores/fake', fake_scores_out)
+        loss = tf.nn.softplus(fake_scores_out)  # -log(1 - logistic(fake_scores_out))
+        loss += tf.nn.softplus(-real_scores_out)  # -log(logistic(real_scores_out)) # temporary pylint workaround # pylint: disable=invalid-unary-operand-type
 
     with tf.name_scope('GradientPenalty'):
         real_grads = tf.gradients(tf.reduce_sum(real_scores_out), [reals])[0]
         gradient_penalty = tf.reduce_sum(tf.square(real_grads), axis=[1,2,3])
         gradient_penalty = autosummary('Loss/gradient_penalty', gradient_penalty)
         reg = gradient_penalty * (gamma * 0.5)
-    return loss, reg
+
+    if ppl_fake is not None:
+        ppl = (ppl_fake + ppl_real) / 2
+    else:
+        ppl = tf.zeros(1)
+    return loss, reg, ppl
 
 def D_logistic_r2(G, D, opt, training_set, minibatch_size, reals, labels, gamma=10.0):
     _ = opt, training_set
@@ -151,7 +167,11 @@ def G_logistic_ns_pathreg(G, D, opt, training_set, minibatch_size, pl_minibatch_
     labels = training_set.get_random_labels_tf(minibatch_size)
     fake_images_out, fake_dlatents_out = G.get_output_for(latents, labels, is_training=True, return_dlatents=True)
     fake_scores_out = D.get_output_for(fake_images_out, labels, is_training=True)
-    loss = tf.nn.softplus(-fake_scores_out) # -log(sigmoid(fake_scores_out))
+    if isinstance(fake_scores_out, tuple):
+        fake_scores_out, quant_loss = fake_scores_out[0], fake_scores_out[1]
+        loss = tf.nn.softplus(-fake_scores_out) + quant_loss # -log(logistic(fake_scores_out))
+    else:
+        loss = tf.nn.softplus(-fake_scores_out)  # -log(logistic(fake_scores_out))
 
     # Path length regularization.
     with tf.name_scope('PathReg'):

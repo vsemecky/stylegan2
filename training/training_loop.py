@@ -230,7 +230,7 @@ def training_loop(
                 with tf.name_scope('G_loss'):
                     G_loss, G_reg = dnnlib.util.call_func_by_name(G=G_gpu, D=D_gpu, opt=G_opt, training_set=training_set, minibatch_size=minibatch_gpu_in, **G_loss_args)
                 with tf.name_scope('D_loss'):
-                    D_loss, D_reg = dnnlib.util.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, training_set=training_set, minibatch_size=minibatch_gpu_in, reals=reals_read, labels=labels_read, **D_loss_args)
+                    D_loss, D_reg, perplexity = dnnlib.util.call_func_by_name(G=G_gpu, D=D_gpu, opt=D_opt, training_set=training_set, minibatch_size=minibatch_gpu_in, reals=reals_read, labels=labels_read, **D_loss_args)
 
             # Register gradients.
             if not lazy_regularization:
@@ -286,6 +286,7 @@ def training_loop(
                 G_opt.reset_optimizer_state(); D_opt.reset_optimizer_state()
         prev_lod = sched.lod
 
+        ppl = 0.0
         # Run training ops.
         # Seperate to two feed_dict, G/D rate matters for G/D train and reg optimizers, not for data_fetch_op and Gs_update_op
         feed_dict_g = {lod_in: sched.lod, lrate_in: sched.G_lrate, minibatch_size_in: sched.minibatch_size, minibatch_gpu_in: sched.minibatch_gpu}
@@ -304,7 +305,7 @@ def training_loop(
                     tflib.run(G_reg_op, feed_dict_g)
                 tflib.run([D_train_op, Gs_update_op], feed_dict_d)
                 if run_D_reg:
-                    tflib.run(D_reg_op, feed_dict_d)
+                    _, ppl = tflib.run([D_reg_op, perplexity], feed_dict_d)
 
             # Slow path with gradient accumulation.
             else:
@@ -316,10 +317,10 @@ def training_loop(
                 tflib.run(Gs_update_op, feed_dict_g)
                 for _round in rounds:
                     tflib.run(data_fetch_op, feed_dict_d)
-                    tflib.run(D_train_op, feed_dict_d)
+                    _, ppl = tflib.run([D_train_op, perplexity], feed_dict_d)
                 if run_D_reg:
                     for _round in rounds:
-                        tflib.run(D_reg_op, feed_dict_d)
+                        _, ppl = tflib.run([D_reg_op, perplexity], feed_dict_d)
 
         # Perform maintenance tasks once per tick.
         done = (cur_nimg >= total_kimg * 1000)
@@ -340,7 +341,8 @@ def training_loop(
                 autosummary('Timing/sec_per_tick', tick_time),
                 autosummary('Timing/sec_per_kimg', tick_time / tick_kimg),
                 autosummary('Timing/maintenance_sec', maintenance_time),
-                autosummary('Resources/peak_gpu_mem_gb', peak_gpu_mem_op.eval() / 2**30)))
+                autosummary('Resources/peak_gpu_mem_gb', peak_gpu_mem_op.eval() / 2**30)),
+                autosummary('Perplexity', ppl))
             autosummary('Timing/total_hours', total_time / (60.0 * 60.0))
             autosummary('Timing/total_days', total_time / (24.0 * 60.0 * 60.0))
 

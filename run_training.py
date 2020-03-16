@@ -33,10 +33,14 @@ _valid_configs = [
 
 #----------------------------------------------------------------------------
 
-def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, mirror_augment, mirror_augment_v, metrics, min_h, min_w, res_log2, lr, use_attention, resume_with_new_nets, glr, dlr, use_raw):
+def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, mirror_augment, mirror_augment_v, metrics, min_h, min_w, res_log2, lr, use_attention, resume_with_new_nets, glr, dlr, use_raw, 
+        commitment_cost, discrete_layer, decay, D_type):
     train     = EasyDict(run_func_name='training.training_loop.training_loop') # Options for training loop.
     G         = EasyDict(func_name='training.networks_stylegan2.G_main')       # Options for generator network.
-    D         = EasyDict(func_name='training.networks_stylegan2.D_stylegan2')  # Options for discriminator network.
+    if D_type == 1:
+        D         = EasyDict(func_name='training.networks_stylegan2.D_stylegan2_quant')
+    else:
+        D         = EasyDict(func_name='training.networks_stylegan2.D_stylegan2')  # Options for discriminator network
     G_opt     = EasyDict(beta1=0.0, beta2=0.99, epsilon=1e-8)                  # Options for generator optimizer.
     D_opt     = EasyDict(beta1=0.0, beta2=0.99, epsilon=1e-8)                  # Options for discriminator optimizer.
     G_loss    = EasyDict(func_name='training.loss.G_logistic_ns_pathreg')      # Options for generator loss.
@@ -45,14 +49,17 @@ def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, m
     grid      = EasyDict(size='8k', layout='random')                           # Options for setup_snapshot_image_grid().
     sc        = dnnlib.SubmitConfig()                                          # Options for dnnlib.submit_run().
     tf_config = {'rnd.np_random_seed': 1000}                                   # Options for tflib.init_tf().
+    D.commitment_cost = commitment_cost
+    D.discrete_layer = discrete_layer
+    D.decay = decay
 
     train.data_dir = data_dir
     train.total_kimg = total_kimg
     train.mirror_augment = mirror_augment
     train.mirror_augment_v = mirror_augment_v
     train.resume_with_new_nets = resume_with_new_nets
-    train.image_snapshot_ticks = 1
-    train.network_snapshot_ticks = 4
+    train.image_snapshot_ticks = 6
+    train.network_snapshot_ticks = 30
     sched.G_lrate_base = sched.D_lrate_base = lr
     
     if glr:
@@ -65,7 +72,8 @@ def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, m
     D_loss.gamma = 10
     metrics = [metric_defaults[x] for x in metrics]
     desc = 'stylegan2'
-
+    if D_type == 1:
+        desc += '-fq'
     desc += '-' + dataset
     dataset_args = EasyDict(tfrecord_dir=dataset)
     dataset_args.use_raw = use_raw
@@ -194,7 +202,10 @@ def main():
     parser.add_argument('--use-raw', help='Use raw image dataset, i.e. created from create_from_images_raw (default: %(default)s)', default=True, metavar='BOOL', type=_str_to_bool)
     parser.add_argument('--use-attention', help='Experimental: Use google attention (default: %(default)s)', default=False, metavar='BOOL', type=_str_to_bool)
     parser.add_argument('--resume_with_new_nets', help='Experimental: Copy from checkpoint instead of direct load, useful for network structure modification (default: %(default)s)', default=False, metavar='BOOL', type=_str_to_bool)
-    
+    parser.add_argument('--discrete_layer', default='23',type=str)
+    parser.add_argument('--commitment_cost', default=0.25,type=float)
+    parser.add_argument('--decay', default=0.8, type=float)
+    parser.add_argument('--D_type', default=0, type=int)    
     args = parser.parse_args()
 
     if not os.path.exists(args.data_dir):
