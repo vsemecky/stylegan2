@@ -2,6 +2,7 @@ import pickle
 import numpy as np
 import imageio
 import moviepy.editor
+from moviepy.editor import *
 import scipy
 import dnnlib.tflib as tflib
 
@@ -28,6 +29,18 @@ def load_network(pkl):
             networks_cache[pkl] = pickle.load(stream, encoding='latin1')
             return networks_cache[pkl]
 
+
+#
+# Generates unified filename base on parameters
+#
+def get_filename(prefix="video", time=None, psi=None):
+    file_name = prefix
+    if time:
+        file_name += " - {}sec".format(time)
+    if psi:
+        file_name += " - psi={}".format(psi)
+
+    return file_name
 
 #
 # Generates latent walk VideoClip
@@ -83,3 +96,37 @@ def latent_walk_clip(
     clip = moviepy.editor.VideoClip(make_frame, duration=time)
     return clip
 
+
+#
+# Generates psi comparison VideoClip
+#
+def psi_comparison_clip(
+            pkl=None,
+            mp4_fps=30,
+            time=60,  # Duration in seconds
+            smoothing_sec=1.0,
+            randomize_noise=False,
+            seed=420):
+
+    # Grid of psi truncations
+    grid = [
+        [0.1, 0.2, 0.3],
+        [0.4, 0.5, 0.6],
+        [0.7, 0.8, 0.9],
+    ]
+
+    # Overwrite psi values with MoviePy clips
+    for row in range(len(grid)):
+        for col in range(len(grid[row])):
+            psi = grid[row][col]
+            grid[row][col] = latent_walk_clip(
+                pkl=pkl,
+                mp4_fps=mp4_fps,
+                psi=psi,
+                time=time,
+                smoothing_sec=smoothing_sec,
+                randomize_noise=randomize_noise,
+                seed=seed
+            )
+
+    return clips_array(grid)
