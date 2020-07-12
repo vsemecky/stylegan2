@@ -33,7 +33,7 @@ def load_network(pkl):
 #
 # Generates unified filename base on parameters
 #
-def get_filename(prefix="video", duration=None, psi=None):
+def get_filename(prefix="video", time=None, psi=None):
     file_name = prefix
     if duration:
         file_name += " - {}sec".format(duration)
