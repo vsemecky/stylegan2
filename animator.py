@@ -35,8 +35,8 @@ def load_network(pkl):
 #
 def get_filename(prefix="video", time=None, psi=None):
     file_name = prefix
-    if duration:
-        file_name += " - {}sec".format(duration)
+    if time:
+        file_name += " - {}sec".format(time)
     if psi:
         file_name += " - psi={:03d}".format(int(100 * psi))
     file_name += ".mp4"  # Append extension
