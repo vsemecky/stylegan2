@@ -33,7 +33,7 @@ _valid_configs = [
 
 #----------------------------------------------------------------------------
 
-def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, mirror_augment, mirror_augment_v, metrics, min_h, min_w, res_log2, lr, use_attention, resume_with_new_nets, glr, dlr, use_raw):
+def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, mirror_augment, mirror_augment_v, metrics, min_h, min_w, res_log2, lr, use_attention, resume_with_new_nets, glr, dlr, use_raw, minibatch_size, minibatch_gpu):
     train     = EasyDict(run_func_name='training.training_loop.training_loop') # Options for training loop.
     G         = EasyDict(func_name='training.networks_stylegan2.G_main')       # Options for generator network.
     D         = EasyDict(func_name='training.networks_stylegan2.D_stylegan2')  # Options for discriminator network.
@@ -60,8 +60,8 @@ def run(dataset, data_dir, result_dir, config_id, num_gpus, total_kimg, gamma, m
     if dlr:
         sched.D_lrate_base = dlr
 
-    sched.minibatch_size_base = 32
-    sched.minibatch_gpu_base = 4
+    sched.minibatch_size_base = minibatch_size
+    sched.minibatch_gpu_base = minibatch_gpu
     D_loss.gamma = 10
     metrics = [metric_defaults[x] for x in metrics]
     desc = 'stylegan2'
@@ -191,10 +191,12 @@ def main():
     parser.add_argument('--lr', help='base learning rate', default=0.003, type=float)
     parser.add_argument('--glr',help='overwrite base learning rate for G', default=None, type=float)
     parser.add_argument('--dlr',help='overwrite base learning rate for D', default=None, type=float)
+    parser.add_argument('--minibatch-size', help='Maximum minibatch size to use', default=32, type=int)
+    parser.add_argument('--minibatch-gpu', help='The size processed at a time by a single GPU', default=4, type=int)
     parser.add_argument('--use-raw', help='Use raw image dataset, i.e. created from create_from_images_raw (default: %(default)s)', default=True, metavar='BOOL', type=_str_to_bool)
     parser.add_argument('--use-attention', help='Experimental: Use google attention (default: %(default)s)', default=False, metavar='BOOL', type=_str_to_bool)
     parser.add_argument('--resume_with_new_nets', help='Experimental: Copy from checkpoint instead of direct load, useful for network structure modification (default: %(default)s)', default=False, metavar='BOOL', type=_str_to_bool)
-    
+
     args = parser.parse_args()
 
     if not os.path.exists(args.data_dir):
