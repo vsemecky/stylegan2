@@ -209,18 +209,20 @@ def latent_walk_clip(
 #
 def psi_comparison_clip(
             pkl=None,
+            grid=None,
             mp4_fps=30,
             time=60,  # Duration in seconds
             smoothing_sec=1.0,
             randomize_noise=False,
             seed=420):
 
-    # Grid of psi truncations
-    grid = [
-        [0.1, 0.2, 0.3],
-        [0.4, 0.5, 0.6],
-        [0.7, 0.8, 0.9],
-    ]
+    # Default grid of psi truncations
+    if grid is None:
+        grid = [
+            [0.1, 0.2, 0.3],
+            [0.4, 0.5, 0.6],
+            [0.7, 0.8, 0.9],
+        ]
 
     # Overwrite psi values with MoviePy clips
     for row in range(len(grid)):
