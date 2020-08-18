@@ -239,3 +239,40 @@ def psi_comparison_clip(
             )
 
     return clips_array(grid)
+
+
+#
+# Generates psi comparison VideoClip
+#
+def seed_comparison_clip(
+            pkl=None,
+            grid=None, # Grid of seeds
+            psi=0.5,  # Truncation psi
+            mp4_fps=30,
+            time=60,  # Duration in seconds
+            smoothing_sec=1.0,
+            randomize_noise=False):
+
+    # Default grid of seeds
+    if grid is None:
+        grid = [
+            [420, 128, 846, 1420, 1128, 1846],
+            [542, 251, 355, 1542, 1251, 1355],
+        ]
+
+    # Overwrite psi values with MoviePy clips
+    for row in range(len(grid)):
+        for col in range(len(grid[row])):
+            seed = grid[row][col]
+            print(seed)
+            grid[row][col] = latent_walk_clip(
+                pkl=pkl,
+                mp4_fps=mp4_fps,
+                psi=psi,
+                time=time,
+                smoothing_sec=smoothing_sec,
+                randomize_noise=randomize_noise,
+                seed=seed
+            )
+
+    return clips_array(grid)
