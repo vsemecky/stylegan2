@@ -20,6 +20,7 @@ from training import misc
 class FID(metric_base.MetricBase):
     def __init__(self, num_images, minibatch_per_gpu, **kwargs):
         super().__init__(**kwargs)
+        print("minibatch_per_gpu:", minibatch_per_gpu)  # Debug
         self.num_images = num_images
         self.minibatch_per_gpu = minibatch_per_gpu
 
