@@ -1,12 +1,9 @@
-import pickle
-import numpy as np
-import imageio
 import moviepy.editor
 from moviepy.editor import *
 import scipy
 import dnnlib.tflib as tflib
+from datetime import datetime
 
-from training.misc import create_image_grid
 
 # Init
 networks_cache = {}
@@ -31,10 +28,14 @@ def load_network(pkl):
 
 
 #
-# Generates unified filename base on parameters
+# Generates unified filename based on parameters
 #
-def get_filename(prefix="video", time=None, psi=None, seed=None):
-    file_name = prefix
+def get_filename(prefix="video", time=None, psi=None, seed=None, timestamp=True):
+    file_name = ""
+    if timestamp:
+        file_name += datetime.now().strftime("%Y-%m-%d ")
+    if prefix:
+        file_name += prefix
     if seed:
         file_name += " - seed={}".format(seed)
     if time:
