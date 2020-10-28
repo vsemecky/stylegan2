@@ -1,8 +1,12 @@
-import moviepy.editor
 from moviepy.editor import *
 import scipy
+import dnnlib
 import dnnlib.tflib as tflib
 from datetime import datetime
+import pickle
+import numpy as np
+import PIL.Image
+from training.misc import create_image_grid
 
 
 # Init
@@ -12,12 +16,12 @@ imageio.plugins.ffmpeg.download()  # Download ffmpeg if not installed
 
 
 #
-# Loads pre-trained network from pkl. Result is cached for future use.
+# Loads pre-trained network from pkl file or URL
+# Result is cached for future use.
 #
 def load_network(pkl):
     if pkl in networks_cache.keys():
         # Return network from cache
-        print("Cached neurals: {}".format(pkl))
         return networks_cache[pkl]
     else:
         # Load network from pkl file and store to cache
@@ -33,7 +37,7 @@ def load_network(pkl):
 def get_filename(prefix="video", time=None, psi=None, seed=None, timestamp=True):
     file_name = ""
     if timestamp:
-        file_name += datetime.now().strftime("%Y-%m-%d ")
+        file_name += datetime.now().strftime("%Y-%m-%d %H:%M")
     if prefix:
         file_name += prefix
     if seed:
@@ -46,15 +50,6 @@ def get_filename(prefix="video", time=None, psi=None, seed=None, timestamp=True)
 
     return file_name
 
-
-import pickle
-import numpy as np
-import dnnlib
-import dnnlib.tflib as tflib
-import PIL.Image
-import moviepy.editor
-from moviepy.editor import *
-from training.misc import create_image_grid
 
 tflib.init_tf()
 
@@ -148,7 +143,7 @@ def latent_interpolation_clip(pkl, psi=0.5, mp4_fps=30, duration=60, seeds=[]):
         return grid
 
     # Return clip
-    clip = moviepy.editor.VideoClip(make_frame, duration=duration)
+    clip = VideoClip(make_frame, duration=duration)
     return clip
 
 
@@ -203,7 +198,7 @@ def latent_walk_clip(
         return grid
 
     # Return clip
-    clip = moviepy.editor.VideoClip(make_frame, duration=time)
+    clip = VideoClip(make_frame, duration=time)
     return clip
 
 
@@ -267,7 +262,6 @@ def seed_comparison_clip(
     for row in range(len(grid)):
         for col in range(len(grid[row])):
             seed = grid[row][col]
-            print(seed)
             grid[row][col] = latent_walk_clip(
                 pkl=pkl,
                 mp4_fps=mp4_fps,
